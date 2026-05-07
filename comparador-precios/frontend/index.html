@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PrecioYa — Comparador de Precios</title>
+  <style>
+    /* ── Reset & Variables ─────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary:   #2563eb;
+      --primary-d: #1d4ed8;
+      --accent:    #f59e0b;
+      --bg:        #f1f5f9;
+      --surface:   #ffffff;
+      --text:      #1e293b;
+      --muted:     #64748b;
+      --border:    #e2e8f0;
+      --red:       #ef4444;
+      --green:     #22c55e;
+      --radius:    12px;
+      --shadow:    0 4px 24px rgba(0,0,0,.08);
+    }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* ── Header ────────────────────────────────────────────────────────────── */
+    header {
+      background: var(--primary);
+      padding: 0 2rem;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 64px; box-shadow: 0 2px 12px rgba(37,99,235,.3);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .logo { color: #fff; font-size: 1.4rem; font-weight: 800; letter-spacing: -0.5px; }
+    .logo span { color: var(--accent); }
+    .header-right { display: flex; align-items: center; gap: 1rem; }
+    .user-badge { color: #fff; font-size: .9rem; opacity: .9; }
+    .btn-header { background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.3); color: #fff; padding: .4rem 1rem; border-radius: 8px; cursor: pointer; font-size: .85rem; transition: background .2s; }
+    .btn-header:hover { background: rgba(255,255,255,.25); }
+
+    /* ── Main layout ───────────────────────────────────────────────────────── */
+    main { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+    /* ── Auth panel ────────────────────────────────────────────────────────── */
+    #auth-panel {
+      max-width: 420px; margin: 3rem auto;
+      background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
+    }
+    .auth-tabs { display: flex; }
+    .auth-tab { flex: 1; padding: 1rem; text-align: center; cursor: pointer; font-weight: 600; font-size: .95rem; color: var(--muted); border-bottom: 3px solid transparent; transition: all .2s; background: var(--surface); border: none; }
+    .auth-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .auth-form { padding: 2rem; display: flex; flex-direction: column; gap: 1rem; }
+    .form-group { display: flex; flex-direction: column; gap: .4rem; }
+    .form-group label { font-size: .85rem; font-weight: 600; color: var(--muted); }
+    .form-group input { padding: .7rem 1rem; border: 1.5px solid var(--border); border-radius: 8px; font-size: .95rem; transition: border-color .2s; outline: none; }
+    .form-group input:focus { border-color: var(--primary); }
+    .btn-primary { background: var(--primary); color: #fff; border: none; padding: .8rem; border-radius: 8px; font-size: 1rem; font-weight: 700; cursor: pointer; transition: background .2s; }
+    .btn-primary:hover { background: var(--primary-d); }
+    .btn-primary:disabled { opacity: .6; cursor: not-allowed; }
+    .auth-error { color: var(--red); font-size: .85rem; text-align: center; min-height: 1.2rem; }
+
+    /* ── App panel (post-login) ─────────────────────────────────────────────── */
+    #app-panel { display: none; }
+
+    /* ── Search bar ─────────────────────────────────────────────────────────── */
+    .search-section { margin-bottom: 2rem; }
+    .search-box { display: flex; gap: .75rem; background: var(--surface); padding: 1rem 1.5rem; border-radius: var(--radius); box-shadow: var(--shadow); }
+    .search-box input { flex: 1; border: 1.5px solid var(--border); border-radius: 8px; padding: .75rem 1rem; font-size: 1rem; outline: none; transition: border-color .2s; }
+    .search-box input:focus { border-color: var(--primary); }
+    .btn-search { background: var(--primary); color: #fff; border: none; padding: .75rem 1.5rem; border-radius: 8px; font-size: 1rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: .5rem; transition: background .2s; white-space: nowrap; }
+    .btn-search:hover { background: var(--primary-d); }
+    .btn-search:disabled { opacity: .6; cursor: not-allowed; }
+
+    /* ── Tabs de vista ─────────────────────────────────────────────────────── */
+    .view-tabs { display: flex; gap: .5rem; margin-bottom: 1.5rem; }
+    .view-tab { padding: .5rem 1.2rem; border-radius: 999px; border: 1.5px solid var(--border); background: var(--surface); color: var(--muted); font-weight: 600; font-size: .9rem; cursor: pointer; transition: all .2s; }
+    .view-tab.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+    /* ── Products grid ──────────────────────────────────────────────────────── */
+    .results-info { font-size: .9rem; color: var(--muted); margin-bottom: 1rem; }
+    .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1.25rem; }
+
+    .product-card {
+      background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow);
+      overflow: hidden; display: flex; flex-direction: column;
+      transition: transform .2s, box-shadow .2s;
+    }
+    .product-card:hover { transform: translateY(-4px); box-shadow: 0 8px 32px rgba(0,0,0,.12); }
+    .product-img-wrap { height: 180px; display: flex; align-items: center; justify-content: center; background: #f8fafc; padding: 1rem; }
+    .product-img-wrap img { max-height: 160px; max-width: 100%; object-fit: contain; }
+    .product-body { padding: 1rem; flex: 1; display: flex; flex-direction: column; gap: .5rem; }
+    .product-name { font-size: .9rem; font-weight: 600; line-height: 1.4; color: var(--text); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .product-meta { display: flex; gap: .5rem; flex-wrap: wrap; }
+    .badge { font-size: .7rem; padding: .2rem .5rem; border-radius: 999px; font-weight: 600; }
+    .badge-new   { background: #dcfce7; color: #166534; }
+    .badge-used  { background: #fef9c3; color: #713f12; }
+    .badge-ship  { background: #dbeafe; color: #1e40af; }
+    .product-price { font-size: 1.3rem; font-weight: 800; color: var(--primary); }
+    .product-store { font-size: .8rem; color: var(--muted); }
+    .product-actions { display: flex; gap: .5rem; padding: .75rem 1rem; border-top: 1px solid var(--border); }
+    .btn-fav { flex: 1; background: #fff0f0; border: 1.5px solid #fecaca; color: var(--red); border-radius: 8px; padding: .5rem; font-size: .85rem; font-weight: 600; cursor: pointer; transition: all .2s; }
+    .btn-fav:hover, .btn-fav.saved { background: var(--red); color: #fff; border-color: var(--red); }
+    .btn-ver { flex: 1; background: var(--primary); color: #fff; border: none; border-radius: 8px; padding: .5rem; font-size: .85rem; font-weight: 600; cursor: pointer; text-decoration: none; display: flex; align-items: center; justify-content: center; transition: background .2s; }
+    .btn-ver:hover { background: var(--primary-d); }
+
+    /* ── Favoritos ─────────────────────────────────────────────────────────── */
+    #favoritos-view { display: none; }
+    .empty-state { text-align: center; padding: 4rem 2rem; color: var(--muted); }
+    .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
+
+    /* ── Historial ─────────────────────────────────────────────────────────── */
+    #historial-view { display: none; }
+    .historial-list { display: flex; flex-direction: column; gap: .5rem; }
+    .historial-item { background: var(--surface); border-radius: 8px; padding: .8rem 1.2rem; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 4px rgba(0,0,0,.06); cursor: pointer; transition: background .2s; }
+    .historial-item:hover { background: #f0f7ff; }
+    .historial-term { font-weight: 600; }
+    .historial-meta { font-size: .8rem; color: var(--muted); }
+
+    /* ── Loading ────────────────────────────────────────────────────────────── */
+    .spinner { text-align: center; padding: 3rem; color: var(--muted); font-size: 1rem; }
+    .spinner::after { content: ''; display: inline-block; width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin .7s linear infinite; margin-left: .75rem; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Toast ──────────────────────────────────────────────────────────────── */
+    #toast { position: fixed; bottom: 2rem; right: 2rem; background: #1e293b; color: #fff; padding: .8rem 1.5rem; border-radius: 10px; font-size: .9rem; font-weight: 500; opacity: 0; transform: translateY(10px); transition: all .3s; z-index: 999; pointer-events: none; }
+    #toast.show { opacity: 1; transform: translateY(0); }
+    #toast.success { background: #166534; }
+    #toast.error   { background: #991b1b; }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────────── -->
+<header>
+  <div class="logo">Precio<span>Ya</span></div>
+  <div class="header-right">
+    <span class="user-badge" id="user-badge" style="display:none"></span>
+    <button class="btn-header" id="btn-logout" style="display:none" onclick="logout()">Cerrar sesión</button>
+  </div>
+</header>
+
+<!-- ── Auth panel ──────────────────────────────────────────────────────────── -->
+<div id="auth-panel">
+  <div class="auth-tabs">
+    <button class="auth-tab active" onclick="switchTab('login')">Iniciar sesión</button>
+    <button class="auth-tab" onclick="switchTab('register')">Crear cuenta</button>
+  </div>
+
+  <!-- Login -->
+  <div id="tab-login" class="auth-form">
+    <div class="form-group"><label>Email</label><input id="login-email" type="email" placeholder="tu@email.com" /></div>
+    <div class="form-group"><label>Contraseña</label><input id="login-password" type="password" placeholder="••••••••" /></div>
+    <div class="auth-error" id="login-error"></div>
+    <button class="btn-primary" onclick="login()">Entrar</button>
+  </div>
+
+  <!-- Register -->
+  <div id="tab-register" class="auth-form" style="display:none">
+    <div class="form-group"><label>Nombre</label><input id="reg-nombre" type="text" placeholder="Tu nombre" /></div>
+    <div class="form-group"><label>Email</label><input id="reg-email" type="email" placeholder="tu@email.com" /></div>
+    <div class="form-group"><label>Contraseña</label><input id="reg-password" type="password" placeholder="Mínimo 6 caracteres" /></div>
+    <div class="auth-error" id="reg-error"></div>
+    <button class="btn-primary" onclick="register()">Crear cuenta</button>
+  </div>
+</div>
+
+<!-- ── App panel ───────────────────────────────────────────────────────────── -->
+<main>
+  <div id="app-panel">
+
+    <!-- Search -->
+    <div class="search-section">
+      <div class="search-box">
+        <input id="search-input" type="text" placeholder="Buscar productos... ej: iPhone 15, zapatillas Nike" onkeydown="if(event.key==='Enter') buscar()" />
+        <button class="btn-search" id="btn-buscar" onclick="buscar()">
+          🔍 Buscar
+        </button>
+      </div>
+    </div>
+
+    <!-- View tabs -->
+    <div class="view-tabs">
+      <button class="view-tab active" id="tab-resultados-btn" onclick="mostrarVista('resultados')">🔍 Resultados</button>
+      <button class="view-tab" id="tab-favoritos-btn" onclick="mostrarVista('favoritos')">❤️ Favoritos</button>
+      <button class="view-tab" id="tab-historial-btn" onclick="mostrarVista('historial')">🕐 Historial</button>
+    </div>
+
+    <!-- Resultados -->
+    <div id="resultados-view">
+      <div id="results-container">
+        <div class="empty-state">
+          <div class="icon">🛒</div>
+          <p>Buscá un producto para ver comparaciones de precios en tiempo real</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Favoritos -->
+    <div id="favoritos-view">
+      <div id="favoritos-container"></div>
+    </div>
+
+    <!-- Historial -->
+    <div id="historial-view">
+      <div id="historial-container"></div>
+    </div>
+
+  </div>
+</main>
+
+<!-- ── Toast ───────────────────────────────────────────────────────────────── -->
+<div id="toast"></div>
+
+<script>
+  // ── Config ──────────────────────────────────────────────────────────────────
+  const API = 'http://localhost:3000/api';
+  let TOKEN = localStorage.getItem('token') || null;
+  let USUARIO = JSON.parse(localStorage.getItem('usuario') || 'null');
+  let favoritosIds = new Set();
+
+  // ── Init ────────────────────────────────────────────────────────────────────
+  window.onload = () => {
+    if (TOKEN && USUARIO) mostrarApp();
+  };
+
+  // ── Toast ───────────────────────────────────────────────────────────────────
+  function toast(msg, tipo = '') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = `show ${tipo}`;
+    setTimeout(() => el.className = '', 3000);
+  }
+
+  // ── Auth tabs ────────────────────────────────────────────────────────────────
+  function switchTab(tab) {
+    document.querySelectorAll('.auth-tab').forEach((t, i) => t.classList.toggle('active', (i === 0) === (tab === 'login')));
+    document.getElementById('tab-login').style.display    = tab === 'login'    ? 'flex' : 'none';
+    document.getElementById('tab-register').style.display = tab === 'register' ? 'flex' : 'none';
+  }
+
+  // ── Login ────────────────────────────────────────────────────────────────────
+  async function login() {
+    const email    = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    document.getElementById('login-error').textContent = '';
+    try {
+      const res  = await fetch(`${API}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+      const data = await res.json();
+      if (!res.ok) { document.getElementById('login-error').textContent = data.error; return; }
+      guardarSesion(data.token, data.usuario);
+    } catch { document.getElementById('login-error').textContent = '¿Está corriendo el backend? (npm run dev)'; }
+  }
+
+  // ── Register ─────────────────────────────────────────────────────────────────
+  async function register() {
+    const nombre   = document.getElementById('reg-nombre').value.trim();
+    const email    = document.getElementById('reg-email').value.trim();
+    const password = document.getElementById('reg-password').value;
+    document.getElementById('reg-error').textContent = '';
+    try {
+      const res  = await fetch(`${API}/auth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nombre, email, password }) });
+      const data = await res.json();
+      if (!res.ok) { document.getElementById('reg-error').textContent = data.error; return; }
+      guardarSesion(data.token, data.usuario);
+    } catch { document.getElementById('reg-error').textContent = '¿Está corriendo el backend? (npm run dev)'; }
+  }
+
+  function guardarSesion(token, usuario) {
+    TOKEN   = token;
+    USUARIO = usuario;
+    localStorage.setItem('token',   TOKEN);
+    localStorage.setItem('usuario', JSON.stringify(USUARIO));
+    mostrarApp();
+  }
+
+  function logout() {
+    TOKEN = null; USUARIO = null;
+    localStorage.removeItem('token');
+    localStorage.removeItem('usuario');
+    document.getElementById('app-panel').style.display  = 'none';
+    document.getElementById('auth-panel').style.display = 'block';
+    document.getElementById('user-badge').style.display = 'none';
+    document.getElementById('btn-logout').style.display = 'none';
+  }
+
+  function mostrarApp() {
+    document.getElementById('auth-panel').style.display = 'none';
+    document.getElementById('app-panel').style.display  = 'block';
+    document.getElementById('user-badge').style.display = 'inline';
+    document.getElementById('user-badge').textContent   = `👋 ${USUARIO.nombre}`;
+    document.getElementById('btn-logout').style.display = 'inline';
+    cargarFavoritosIds();
+  }
+
+  // ── Vistas ───────────────────────────────────────────────────────────────────
+  function mostrarVista(vista) {
+    ['resultados', 'favoritos', 'historial'].forEach(v => {
+      document.getElementById(`${v}-view`).style.display         = v === vista ? 'block' : 'none';
+      document.getElementById(`tab-${v}-btn`).classList.toggle('active', v === vista);
+    });
+    if (vista === 'favoritos') cargarFavoritos();
+    if (vista === 'historial') cargarHistorial();
+  }
+
+  // ── Buscar ───────────────────────────────────────────────────────────────────
+  async function buscar() {
+    const q = document.getElementById('search-input').value.trim();
+    if (!q) { toast('Escribí algo para buscar 🔍', 'error'); return; }
+
+    const container = document.getElementById('results-container');
+    container.innerHTML = '<div class="spinner">Buscando en Mercado Libre</div>';
+    document.getElementById('btn-buscar').disabled = true;
+
+    try {
+      const res  = await fetch(`${API}/productos/buscar?q=${encodeURIComponent(q)}&limite=12`, {
+        headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {}
+      });
+      const data = await res.json();
+
+      if (!res.ok) { container.innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><p>${data.error}</p></div>`; return; }
+      renderProductos(data.productos, data.total, q, container);
+    } catch {
+      container.innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>No se pudo conectar al backend. ¿Está corriendo <code>npm run dev</code>?</p></div>';
+    } finally {
+      document.getElementById('btn-buscar').disabled = false;
+    }
+  }
+
+  function renderProductos(productos, total, termino, container) {
+    if (!productos.length) {
+      container.innerHTML = '<div class="empty-state"><div class="icon">😕</div><p>Sin resultados. Probá con otro término.</p></div>';
+      return;
+    }
+    container.innerHTML = `
+      <p class="results-info">${total.toLocaleString()} resultados para "<strong>${termino}</strong>" — mostrando ${productos.length}</p>
+      <div class="products-grid">${productos.map(cardHTML).join('')}</div>
+    `;
+  }
+
+  function cardHTML(p) {
+    const esFav = favoritosIds.has(p.fuente_id);
+    return `
+    <div class="product-card" id="card-${p.fuente_id}">
+      <div class="product-img-wrap">
+        <img src="${p.imagen_url}" alt="${p.nombre}" onerror="this.src='https://via.placeholder.com/160x160?text=Sin+imagen'" />
+      </div>
+      <div class="product-body">
+        <p class="product-name">${p.nombre}</p>
+        <div class="product-meta">
+          <span class="badge ${p.condicion === 'Nuevo' ? 'badge-new' : 'badge-used'}">${p.condicion}</span>
+          ${p.envio_gratis ? '<span class="badge badge-ship">Envío gratis</span>' : ''}
+        </div>
+        <p class="product-price">${formatPrecio(p.precio, p.moneda)}</p>
+        <p class="product-store">🏪 ${p.tienda}</p>
+      </div>
+      <div class="product-actions">
+        <button class="btn-fav ${esFav ? 'saved' : ''}" id="fav-btn-${p.fuente_id}" onclick='toggleFavorito(${JSON.stringify(p)})'>
+          ${esFav ? '❤️ Guardado' : '🤍 Favorito'}
+        </button>
+        <a class="btn-ver" href="${p.url_compra}" target="_blank">Ver →</a>
+      </div>
+    </div>`;
+  }
+
+  function formatPrecio(precio, moneda) {
+    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: moneda || 'ARS', maximumFractionDigits: 0 }).format(precio);
+  }
+
+  // ── Favoritos ────────────────────────────────────────────────────────────────
+  async function cargarFavoritosIds() {
+    if (!TOKEN) return;
+    try {
+      const res  = await fetch(`${API}/favoritos`, { headers: { Authorization: `Bearer ${TOKEN}` } });
+      const data = await res.json();
+      favoritosIds = new Set(data.favoritos.map(f => f.fuente_id));
+    } catch {}
+  }
+
+  async function toggleFavorito(producto) {
+    if (!TOKEN) { toast('Iniciá sesión para guardar favoritos', 'error'); return; }
+    const esFav = favoritosIds.has(producto.fuente_id);
+
+    if (esFav) {
+      await fetch(`${API}/favoritos/${producto.fuente_id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${TOKEN}` } });
+      favoritosIds.delete(producto.fuente_id);
+      toast('Eliminado de favoritos');
+    } else {
+      const res = await fetch(`${API}/favoritos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${TOKEN}` },
+        body: JSON.stringify(producto)
+      });
+      if (res.ok) { favoritosIds.add(producto.fuente_id); toast('¡Guardado en favoritos! ❤️', 'success'); }
+    }
+
+    // Actualizar botón
+    const btn = document.getElementById(`fav-btn-${producto.fuente_id}`);
+    if (btn) {
+      const ahora = favoritosIds.has(producto.fuente_id);
+      btn.className = `btn-fav ${ahora ? 'saved' : ''}`;
+      btn.textContent = ahora ? '❤️ Guardado' : '🤍 Favorito';
+    }
+  }
+
+  async function cargarFavoritos() {
+    const container = document.getElementById('favoritos-container');
+    container.innerHTML = '<div class="spinner">Cargando favoritos</div>';
+    try {
+      const res  = await fetch(`${API}/favoritos`, { headers: { Authorization: `Bearer ${TOKEN}` } });
+      const data = await res.json();
+      if (!data.favoritos.length) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">🤍</div><p>Todavía no guardaste ningún favorito.<br>Buscá productos y hacé click en "Favorito".</p></div>';
+        return;
+      }
+      container.innerHTML = `
+        <p class="results-info">${data.total} producto${data.total !== 1 ? 's' : ''} guardado${data.total !== 1 ? 's' : ''}</p>
+        <div class="products-grid">${data.favoritos.map(f => cardHTML({ ...f, fuente_id: f.fuente_id })).join('')}</div>
+      `;
+    } catch { container.innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>Error al cargar favoritos.</p></div>'; }
+  }
+
+  // ── Historial ────────────────────────────────────────────────────────────────
+  async function cargarHistorial() {
+    const container = document.getElementById('historial-container');
+    container.innerHTML = '<div class="spinner">Cargando historial</div>';
+    try {
+      const res  = await fetch(`${API}/historial`, { headers: { Authorization: `Bearer ${TOKEN}` } });
+      const data = await res.json();
+      if (!data.historial.length) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">🕐</div><p>Todavía no realizaste búsquedas.</p></div>';
+        return;
+      }
+      container.innerHTML = `
+        <p class="results-info">Últimas ${data.total} búsquedas</p>
+        <div class="historial-list">
+          ${data.historial.map(h => `
+            <div class="historial-item" onclick="document.getElementById('search-input').value='${h.termino}'; mostrarVista('resultados'); buscar();">
+              <div>
+                <p class="historial-term">🔍 ${h.termino}</p>
+                <p class="historial-meta">${h.resultados} resultados · ${new Date(h.realizado_en).toLocaleString('es-AR')}</p>
+              </div>
+              <span style="color:var(--muted)">→</span>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    } catch { container.innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>Error al cargar historial.</p></div>'; }
+  }
+</script>
+</body>
+</html>
