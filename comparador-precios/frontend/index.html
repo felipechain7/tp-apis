@@ -95,6 +95,20 @@
     .badge-new   { background: #dcfce7; color: #166534; }
     .badge-used  { background: #fef9c3; color: #713f12; }
     .badge-ship  { background: #dbeafe; color: #1e40af; }
+    .badge-src   { font-size: .68rem; padding: .15rem .5rem; border-radius: 999px; font-weight: 700; color: #fff; }
+    .src-mercadolibre { background: #ffe600; color: #2d3277; }
+    .src-fakestore    { background: #7c3aed; }
+    .src-dummyjson    { background: #0ea5e9; }
+    .product-price-usd { font-size: .8rem; color: var(--muted); font-weight: 600; }
+    .no-price { font-size: .95rem; font-weight: 700; color: var(--accent); }
+
+    /* ── Toolbar (cotizacion + toggle moneda) ───────────────────────────────── */
+    .toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem; margin-bottom: 1rem; }
+    .cotiz { font-size: .8rem; color: var(--muted); }
+    .cotiz strong { color: var(--text); }
+    .currency-toggle { display: flex; border: 1.5px solid var(--border); border-radius: 999px; overflow: hidden; }
+    .currency-toggle button { border: none; background: var(--surface); padding: .35rem .9rem; font-weight: 700; font-size: .82rem; cursor: pointer; color: var(--muted); }
+    .currency-toggle button.active { background: var(--primary); color: #fff; }
     .product-price { font-size: 1.3rem; font-weight: 800; color: var(--primary); }
     .product-store { font-size: .8rem; color: var(--muted); }
     .product-actions { display: flex; gap: .5rem; padding: .75rem 1rem; border-top: 1px solid var(--border); }
@@ -185,6 +199,15 @@
       <button class="view-tab" id="tab-historial-btn" onclick="mostrarVista('historial')">🕐 Historial</button>
     </div>
 
+    <!-- Toolbar: cotizacion + moneda -->
+    <div class="toolbar">
+      <div class="cotiz" id="cotiz-info"></div>
+      <div class="currency-toggle">
+        <button id="moneda-ars" class="active" onclick="setMoneda('ARS')">ARS $</button>
+        <button id="moneda-usd" onclick="setMoneda('USD')">USD u$s</button>
+      </div>
+    </div>
+
     <!-- Resultados -->
     <div id="resultados-view">
       <div id="results-container">
@@ -213,13 +236,32 @@
 
 <script>
   // ── Config ──────────────────────────────────────────────────────────────────
-  const API = 'http://localhost:3000/api';
+  // En local apunta al backend local; en producción, cambiá BACKEND_PROD por la URL de tu backend desplegado.
+  const BACKEND_PROD = 'https://TU-BACKEND.onrender.com';
+  const esLocal = ['localhost', '127.0.0.1'].includes(location.hostname);
+  const API = (esLocal ? 'http://localhost:3000' : BACKEND_PROD) + '/api';
   let TOKEN = localStorage.getItem('token') || null;
   let USUARIO = JSON.parse(localStorage.getItem('usuario') || 'null');
   let favoritosIds = new Set();
+  let MONEDA = localStorage.getItem('moneda') || 'ARS';
+  let ultimaBusqueda = null; // { productos, total, termino } para re-render al cambiar moneda
+
+  const LABELS = { mercadolibre: 'Mercado Libre', fakestore: 'FakeStore', dummyjson: 'Tienda Online' };
+
+  function setMoneda(m) {
+    MONEDA = m;
+    localStorage.setItem('moneda', m);
+    document.getElementById('moneda-ars').classList.toggle('active', m === 'ARS');
+    document.getElementById('moneda-usd').classList.toggle('active', m === 'USD');
+    // Re-render de la vista activa
+    if (document.getElementById('favoritos-view').style.display === 'block') { cargarFavoritos(); return; }
+    if (ultimaBusqueda) renderProductos(ultimaBusqueda.productos, ultimaBusqueda.total, ultimaBusqueda.termino, document.getElementById('results-container'), ultimaBusqueda.por_fuente);
+  }
 
   // ── Init ────────────────────────────────────────────────────────────────────
   window.onload = () => {
+    document.getElementById('moneda-ars').classList.toggle('active', MONEDA === 'ARS');
+    document.getElementById('moneda-usd').classList.toggle('active', MONEDA === 'USD');
     if (TOKEN && USUARIO) mostrarApp();
   };
 
@@ -308,7 +350,7 @@
     if (!q) { toast('Escribí algo para buscar 🔍', 'error'); return; }
 
     const container = document.getElementById('results-container');
-    container.innerHTML = '<div class="spinner">Buscando en Mercado Libre</div>';
+    container.innerHTML = '<div class="spinner">Comparando precios en todas las tiendas</div>';
     document.getElementById('btn-buscar').disabled = true;
 
     try {
@@ -318,7 +360,9 @@
       const data = await res.json();
 
       if (!res.ok) { container.innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><p>${data.error}</p></div>`; return; }
-      renderProductos(data.productos, data.total, q, container);
+      if (data.cotizacion) mostrarCotizacion(data.cotizacion);
+      ultimaBusqueda = { productos: data.productos, total: data.total, termino: q, por_fuente: data.por_fuente };
+      renderProductos(data.productos, data.total, q, container, data.por_fuente);
     } catch {
       container.innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>No se pudo conectar al backend. ¿Está corriendo <code>npm run dev</code>?</p></div>';
     } finally {
@@ -326,31 +370,43 @@
     }
   }
 
-  function renderProductos(productos, total, termino, container) {
+  function mostrarCotizacion(cot) {
+    const el = document.getElementById('cotiz-info');
+    if (!el || !cot || !cot.venta) { if (el) el.textContent = ''; return; }
+    el.innerHTML = `💵 Dólar ${cot.casa}: <strong>$${cot.venta.toLocaleString('es-AR')}</strong> · precios convertidos en vivo`;
+  }
+
+  function renderProductos(productos, total, termino, container, porFuente) {
     if (!productos.length) {
       container.innerHTML = '<div class="empty-state"><div class="icon">😕</div><p>Sin resultados. Probá con otro término.</p></div>';
       return;
     }
+    const resumen = porFuente
+      ? Object.entries(porFuente).filter(([, n]) => n > 0).map(([f, n]) => `${LABELS[f] || f}: ${n}`).join(' · ')
+      : '';
     container.innerHTML = `
-      <p class="results-info">${total.toLocaleString()} resultados para "<strong>${termino}</strong>" — mostrando ${productos.length}</p>
+      <p class="results-info">${total} resultados para "<strong>${termino}</strong>"${resumen ? ' — ' + resumen : ''} · ordenados por precio</p>
       <div class="products-grid">${productos.map(cardHTML).join('')}</div>
     `;
   }
 
   function cardHTML(p) {
     const esFav = favoritosIds.has(p.fuente_id);
+    const srcClass = `src-${p.fuente_api}`;
+    const srcLabel = p.fuente_label || LABELS[p.fuente_api] || p.fuente_api;
     return `
     <div class="product-card" id="card-${p.fuente_id}">
       <div class="product-img-wrap">
         <img src="${p.imagen_url}" alt="${p.nombre}" onerror="this.src='https://via.placeholder.com/160x160?text=Sin+imagen'" />
       </div>
       <div class="product-body">
-        <p class="product-name">${p.nombre}</p>
         <div class="product-meta">
+          <span class="badge-src ${srcClass}">${srcLabel}</span>
           <span class="badge ${p.condicion === 'Nuevo' ? 'badge-new' : 'badge-used'}">${p.condicion}</span>
           ${p.envio_gratis ? '<span class="badge badge-ship">Envío gratis</span>' : ''}
         </div>
-        <p class="product-price">${formatPrecio(p.precio, p.moneda)}</p>
+        <p class="product-name">${p.nombre}</p>
+        ${precioHTML(p)}
         <p class="product-store">🏪 ${p.tienda}</p>
       </div>
       <div class="product-actions">
@@ -362,8 +418,17 @@
     </div>`;
   }
 
-  function formatPrecio(precio, moneda) {
-    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: moneda || 'ARS', maximumFractionDigits: 0 }).format(precio);
+  function precioHTML(p) {
+    if (p.sin_precio || p.precio_ars == null) {
+      return '<p class="no-price">Ver precio en la tienda →</p>';
+    }
+    const principal = MONEDA === 'USD'
+      ? `u$s ${p.precio_usd.toLocaleString('es-AR')}`
+      : `$ ${p.precio_ars.toLocaleString('es-AR')}`;
+    const secundario = MONEDA === 'USD'
+      ? `$ ${p.precio_ars.toLocaleString('es-AR')} ARS`
+      : `u$s ${p.precio_usd.toLocaleString('es-AR')} USD`;
+    return `<p class="product-price">${principal}</p><p class="product-price-usd">≈ ${secundario}</p>`;
   }
 
   // ── Favoritos ────────────────────────────────────────────────────────────────

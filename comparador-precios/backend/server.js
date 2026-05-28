@@ -7,6 +7,7 @@ const authRoutes      = require('./routes/auth');
 const productosRoutes = require('./routes/productos');
 const favoritosRoutes = require('./routes/favoritos');
 const historialRoutes = require('./routes/historial');
+const mlRoutes        = require('./routes/ml');
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.use('/api/auth',      authRoutes);
 app.use('/api/productos', productosRoutes);
 app.use('/api/favoritos', favoritosRoutes);
 app.use('/api/historial', historialRoutes);
+app.use('/api/ml',        mlRoutes);
 
 // Health check
 app.get('/', (req, res) => {

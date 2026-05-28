@@ -7,15 +7,21 @@ const router = express.Router();
 // ── POST /api/favoritos  (guardar un favorito) ────────────────────────────────
 router.post('/', autenticar, async (req, res) => {
   try {
-    const { fuente_id, fuente_api, nombre, precio, moneda, imagen_url, url_compra, categoria } = req.body;
+    const {
+      fuente_id, fuente_api, fuente_label, nombre, precio, moneda,
+      precio_ars, precio_usd, imagen_url, url_compra, tienda, categoria,
+      condicion, sin_precio
+    } = req.body;
 
-    if (!fuente_id || !nombre || precio === undefined) {
-      return res.status(400).json({ error: 'fuente_id, nombre y precio son obligatorios.' });
+    if (!fuente_id || !nombre) {
+      return res.status(400).json({ error: 'fuente_id y nombre son obligatorios.' });
     }
 
     const favorito = await Favorito.create({
       usuario_id: req.usuario.id,
-      fuente_id, fuente_api, nombre, precio, moneda, imagen_url, url_compra, categoria
+      fuente_id, fuente_api, fuente_label, nombre, precio, moneda,
+      precio_ars, precio_usd, imagen_url, url_compra, tienda, categoria,
+      condicion, sin_precio
     });
 
     res.status(201).json({ mensaje: 'Producto guardado en favoritos ❤️', favorito });

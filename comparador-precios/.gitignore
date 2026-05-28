@@ -1,6 +1,5 @@
 node_modules/
 .env
+.ml_token.json
 *.log
 .DS_Store
-ML_APP_ID=393139547016392
-ML_CLIENT_SECRET=6Tw82lBPuUDcG0ww7lEyOChBaRWlhc37
