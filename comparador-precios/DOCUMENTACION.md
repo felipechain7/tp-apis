@@ -67,7 +67,7 @@ toca el frontend (ver sección 7).
 | **Mercado Libre** | Productos reales del catálogo argentino | OAuth (client_credentials / authorization_code) | Ver nota ⚠️ |
 | **FakeStore** (`fakestoreapi.com`) | Catálogo con precios en USD | No requiere clave | ✅ |
 | **DummyJSON** (`dummyjson.com`) | Catálogo con precios, stock, descuento | No requiere clave | ✅ |
-| **DolarAPI** (`dolarapi.com`) | Cotización del dólar blue en Argentina | No requiere clave | ✅ |
+| **DolarAPI** (`dolarapi.com`) | Cotización del dólar MEP en Argentina | No requiere clave | ✅ |
 
 ### ⚠️ Nota importante sobre Mercado Libre
 
@@ -94,7 +94,7 @@ la comparación. La conexión OAuth de ML es opcional y se explica en el README.
 
 DolarAPI no es decorativa. Como FakeStore y DummyJSON devuelven precios en **USD** y
 Mercado Libre en **ARS**, no se podrían comparar entre sí. El servicio `dolar.js` toma la
-cotización del dólar blue y calcula `precio_ars` y `precio_usd` para **cada** producto, lo
+cotización del dólar MEP y calcula `precio_ars` y `precio_usd` para **cada** producto, lo
 que permite (a) ordenarlos todos por una moneda común y (b) que el usuario alterne la
 vista entre ARS y USD.
 

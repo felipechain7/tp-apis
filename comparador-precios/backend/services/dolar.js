@@ -3,7 +3,9 @@ const axios = require('axios');
 // DolarAPI (https://dolarapi.com) — cotizacion del dolar en Argentina, sin clave.
 // La usamos para convertir todos los precios a una moneda comun (ARS/USD)
 // y poder comparar productos de distintas fuentes entre si.
-const URL = 'https://dolarapi.com/v1/dolares/blue';
+// Usamos el dolar MEP (endpoint "bolsa"), mas representativo del tipo de cambio
+// real para compras que el oficial.
+const URL = 'https://dolarapi.com/v1/dolares/bolsa';
 const TTL = 10 * 60 * 1000;
 
 let cache = null;
@@ -17,7 +19,7 @@ async function getCotizacion() {
     cache = {
       compra: data.compra,
       venta: data.venta,
-      casa: data.nombre,
+      casa: 'MEP',
       actualizado: data.fechaActualizacion
     };
     cacheTs = Date.now();
