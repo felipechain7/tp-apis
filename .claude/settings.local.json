@@ -18,7 +18,9 @@
       "Bash(curl -s \"http://localhost:3000/api/productos/buscar?q=laptop&limite=6\" --max-time 40)",
       "Bash(python -c ' *)",
       "mcp__Claude_Preview__preview_start",
-      "Bash(powershell -NoProfile -Command 'Get-CimInstance Win32_Process -Filter \"name='\\\\''node.exe'\\\\''\" | Where-Object { $_.CommandLine -like '\\\\''*server.js*'\\\\'' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }')"
+      "Bash(powershell -NoProfile -Command 'Get-CimInstance Win32_Process -Filter \"name='\\\\''node.exe'\\\\''\" | Where-Object { $_.CommandLine -like '\\\\''*server.js*'\\\\'' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }')",
+      "PowerShell(try { $s = Invoke-RestMethod \"http://localhost:3000/api/ml/status\"; \"STATUS:\"; $s | ConvertTo-Json -Depth 4 } catch { \"status error: $_\" }; \"---\"; try { $r = Invoke-RestMethod \"http://localhost:3000/api/productos/buscar?q=iphone&limite=12&fuentes=mercadolibre\"; \"ML productos: $\\($r.productos.Count\\)\"; $r.productos | Select-Object -First 3 nombre, precio, sin_precio | ConvertTo-Json } catch { \"buscar error: $_\" })",
+      "PowerShell(\"--- /api/ml/status ---\"; curl.exe -s \"https://tp-apis-0p3v.onrender.com/api/ml/status\" 2>&1; \"`n--- Busqueda ML iphone \\(produccion\\) ---\"; $r = curl.exe -s \"https://tp-apis-0p3v.onrender.com/api/productos/buscar?q=iphone&limite=6&fuentes=mercadolibre\" 2>&1; $r | ConvertFrom-Json | ForEach-Object { $_.productos } | Select-Object -First 5 nombre, precio, sin_precio | ConvertTo-Json)"
     ],
     "additionalDirectories": [
       "c:\\Users\\pipec\\OneDrive\\Desktop\\tp apis\\comparador-precios"
