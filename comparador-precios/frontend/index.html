@@ -83,9 +83,23 @@
     .product-card {
       background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow);
       overflow: hidden; display: flex; flex-direction: column;
-      transition: transform .2s, box-shadow .2s;
+      transition: transform .2s, box-shadow .2s; position: relative;
     }
     .product-card:hover { transform: translateY(-4px); box-shadow: 0 8px 32px rgba(0,0,0,.12); }
+    .product-card.is-best { border: 2px solid #16a34a; box-shadow: 0 6px 24px rgba(22,163,74,.22); }
+    .best-ribbon {
+      position: absolute; top: .6rem; left: .6rem; z-index: 2;
+      background: #16a34a; color: #fff; font-size: .7rem; font-weight: 800;
+      letter-spacing: .03em; padding: .25rem .55rem; border-radius: 999px;
+      box-shadow: 0 2px 8px rgba(22,163,74,.4);
+    }
+    .compare-banner {
+      background: linear-gradient(135deg, #16a34a, #15803d); color: #fff;
+      border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem;
+      box-shadow: 0 4px 16px rgba(22,163,74,.25);
+    }
+    .compare-main { font-size: 1.15rem; font-weight: 700; }
+    .compare-sub { font-size: .85rem; opacity: .95; margin-top: .25rem; }
     .product-img-wrap { height: 180px; display: flex; align-items: center; justify-content: center; background: #f8fafc; padding: 1rem; }
     .product-img-wrap img { max-height: 160px; max-width: 100%; object-fit: contain; }
     .product-body { padding: 1rem; flex: 1; display: flex; flex-direction: column; gap: .5rem; }
@@ -255,7 +269,7 @@
     document.getElementById('moneda-usd').classList.toggle('active', m === 'USD');
     // Re-render de la vista activa
     if (document.getElementById('favoritos-view').style.display === 'block') { cargarFavoritos(); return; }
-    if (ultimaBusqueda) renderProductos(ultimaBusqueda.productos, ultimaBusqueda.total, ultimaBusqueda.termino, document.getElementById('results-container'), ultimaBusqueda.por_fuente);
+    if (ultimaBusqueda) renderProductos(ultimaBusqueda.productos, ultimaBusqueda.total, ultimaBusqueda.termino, document.getElementById('results-container'), ultimaBusqueda.por_fuente, ultimaBusqueda.comparacion);
   }
 
   // ── Init ────────────────────────────────────────────────────────────────────
@@ -361,8 +375,8 @@
 
       if (!res.ok) { container.innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><p>${data.error}</p></div>`; return; }
       if (data.cotizacion) mostrarCotizacion(data.cotizacion);
-      ultimaBusqueda = { productos: data.productos, total: data.total, termino: q, por_fuente: data.por_fuente };
-      renderProductos(data.productos, data.total, q, container, data.por_fuente);
+      ultimaBusqueda = { productos: data.productos, total: data.total, termino: q, por_fuente: data.por_fuente, comparacion: data.comparacion };
+      renderProductos(data.productos, data.total, q, container, data.por_fuente, data.comparacion);
     } catch {
       container.innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>No se pudo conectar al backend. ¿Está corriendo <code>npm run dev</code>?</p></div>';
     } finally {
@@ -376,7 +390,7 @@
     el.innerHTML = `💵 Dólar ${cot.casa}: <strong>$${cot.venta.toLocaleString('es-AR')}</strong> · precios convertidos en vivo`;
   }
 
-  function renderProductos(productos, total, termino, container, porFuente) {
+  function renderProductos(productos, total, termino, container, porFuente, comparacion) {
     if (!productos.length) {
       container.innerHTML = '<div class="empty-state"><div class="icon">😕</div><p>Sin resultados. Probá con otro término.</p></div>';
       return;
@@ -385,9 +399,30 @@
       ? Object.entries(porFuente).filter(([, n]) => n > 0).map(([f, n]) => `${LABELS[f] || f}: ${n}`).join(' · ')
       : '';
     container.innerHTML = `
+      ${comparacionHTML(comparacion)}
       <p class="results-info">${total} resultados para "<strong>${termino}</strong>"${resumen ? ' — ' + resumen : ''} · ordenados por precio</p>
       <div class="products-grid">${productos.map(cardHTML).join('')}</div>
     `;
+  }
+
+  // Cartel de comparación: precio más bajo encontrado y rango de resultados (honesto:
+  // no inventa "ahorro" porque los resultados pueden ser productos distintos).
+  function comparacionHTML(c) {
+    if (!c || c.con_precio < 2) return '';
+    const fmt = (usd, ars) => MONEDA === 'USD'
+      ? `u$s ${usd.toLocaleString('es-AR')}`
+      : `$ ${ars.toLocaleString('es-AR')}`;
+    const precioMin = fmt(c.precio_min_usd, c.precio_min_ars);
+    const precioMax = fmt(c.precio_max_usd, c.precio_max_ars);
+    return `
+      <div class="compare-banner">
+        <div class="compare-main">
+          🏆 Precio más bajo: <strong>${precioMin}</strong> en <strong>${c.mejor_fuente}</strong>
+        </div>
+        <div class="compare-sub">
+          ${c.con_precio} ofertas con precio · rango ${precioMin} – ${precioMax} · ordenadas de menor a mayor
+        </div>
+      </div>`;
   }
 
   function cardHTML(p) {
@@ -395,7 +430,8 @@
     const srcClass = `src-${p.fuente_api}`;
     const srcLabel = p.fuente_label || LABELS[p.fuente_api] || p.fuente_api;
     return `
-    <div class="product-card" id="card-${p.fuente_id}">
+    <div class="product-card ${p.mejor_precio ? 'is-best' : ''}" id="card-${p.fuente_id}">
+      ${p.mejor_precio ? '<div class="best-ribbon">🏆 MEJOR PRECIO</div>' : ''}
       <div class="product-img-wrap">
         <img src="${p.imagen_url}" alt="${p.nombre}" onerror="this.src='https://via.placeholder.com/160x160?text=Sin+imagen'" />
       </div>

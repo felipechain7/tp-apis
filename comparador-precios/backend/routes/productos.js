@@ -52,6 +52,35 @@ router.get('/buscar', async (req, res) => {
       return a.precio_usd - b.precio_usd;
     });
 
+    // ── Comparación: marcamos el más barato y calculamos el ahorro ───────────────
+    const conPrecio = productos.filter((p) => p.precio_usd != null);
+    let comparacion = null;
+    if (conPrecio.length > 0) {
+      const masBarato = conPrecio[0];          // ya está ordenado asc por precio_usd
+      const masCaro   = conPrecio[conPrecio.length - 1];
+      masBarato.mejor_precio = true;           // bandera para destacarlo en el front
+
+      const ahorroUsd = Math.round((masCaro.precio_usd - masBarato.precio_usd) * 100) / 100;
+      const ahorroPct = masCaro.precio_usd > 0
+        ? Math.round(((masCaro.precio_usd - masBarato.precio_usd) / masCaro.precio_usd) * 100)
+        : 0;
+
+      comparacion = {
+        con_precio: conPrecio.length,
+        sin_precio: productos.length - conPrecio.length,
+        precio_min_usd: masBarato.precio_usd,
+        precio_min_ars: masBarato.precio_ars,
+        precio_max_usd: masCaro.precio_usd,
+        precio_max_ars: masCaro.precio_ars,
+        mejor_fuente: masBarato.fuente_label || masBarato.fuente,
+        ahorro_usd: ahorroUsd,
+        ahorro_ars: (masCaro.precio_ars != null && masBarato.precio_ars != null)
+          ? masCaro.precio_ars - masBarato.precio_ars
+          : null,
+        ahorro_pct: ahorroPct
+      };
+    }
+
     const cotizacion = await getCotizacion();
 
     // Si el usuario esta logueado, registramos la busqueda en su historial
@@ -69,7 +98,7 @@ router.get('/buscar', async (req, res) => {
       } catch (_) {}
     }
 
-    res.json({ termino, total: productos.length, por_fuente, cotizacion, productos });
+    res.json({ termino, total: productos.length, por_fuente, comparacion, cotizacion, productos });
   } catch (err) {
     console.error('Error buscando productos:', err.message);
     res.status(500).json({ error: 'Error al buscar productos.' });
