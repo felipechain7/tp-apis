@@ -125,6 +125,7 @@
     .currency-toggle button.active { background: var(--primary); color: #fff; }
     .product-price { font-size: 1.3rem; font-weight: 800; color: var(--primary); }
     .product-store { font-size: .8rem; color: var(--muted); }
+    .product-cat { font-size: .8rem; color: var(--muted); text-transform: capitalize; }
     .product-actions { display: flex; gap: .5rem; padding: .75rem 1rem; border-top: 1px solid var(--border); }
     .btn-fav { flex: 1; background: #fff0f0; border: 1.5px solid #fecaca; color: var(--red); border-radius: 8px; padding: .5rem; font-size: .85rem; font-weight: 600; cursor: pointer; transition: all .2s; }
     .btn-fav:hover, .btn-fav.saved { background: var(--red); color: #fff; border-color: var(--red); }
@@ -425,10 +426,20 @@
       </div>`;
   }
 
+  // Deja la categoría presentable. Descarta códigos internos de ML (ej "MLA1055").
+  function formatCategoria(c) {
+    if (!c) return '';
+    if (/^MLA\d+$/i.test(c)) return '';            // código numérico de ML: no mostrar
+    const limpio = String(c).replace(/^MLA-/i, '').replace(/[-_]/g, ' ').trim();
+    if (!limpio) return '';
+    return limpio.charAt(0).toUpperCase() + limpio.slice(1).toLowerCase();
+  }
+
   function cardHTML(p) {
     const esFav = favoritosIds.has(p.fuente_id);
     const srcClass = `src-${p.fuente_api}`;
     const srcLabel = p.fuente_label || LABELS[p.fuente_api] || p.fuente_api;
+    const cat = formatCategoria(p.categoria);
     return `
     <div class="product-card ${p.mejor_precio ? 'is-best' : ''}" id="card-${p.fuente_id}">
       ${p.mejor_precio ? '<div class="best-ribbon">🏆 MEJOR PRECIO</div>' : ''}
@@ -444,6 +455,7 @@
         <p class="product-name">${p.nombre}</p>
         ${precioHTML(p)}
         <p class="product-store">🏪 ${p.tienda}</p>
+        ${cat ? `<p class="product-cat">🏷️ ${cat}</p>` : ''}
       </div>
       <div class="product-actions">
         <button class="btn-fav ${esFav ? 'saved' : ''}" id="fav-btn-${p.fuente_id}" onclick='toggleFavorito(${JSON.stringify(p)})'>

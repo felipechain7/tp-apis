@@ -4,8 +4,9 @@
     {
       "name": "frontend",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "5500", "--directory", "comparador-precios/frontend"],
-      "port": 5500
+      "runtimeArgs": ["-m", "http.server", "5599", "--directory", "comparador-precios/frontend"],
+      "port": 5599,
+      "autoPort": true
     }
   ]
 }
